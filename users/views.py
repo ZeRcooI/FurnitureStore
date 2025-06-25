@@ -1,10 +1,11 @@
-from django.contrib import auth
+from django.contrib import auth, messages
+from django.contrib.auth.decorators import login_required
 from django.http import HttpResponseRedirect
 from django.shortcuts import render, redirect
 from django.template.context_processors import request
 from django.urls import reverse
 
-from users.forms import UserLoginForm, UserRegistrationForm
+from users.forms import UserLoginForm, UserRegistrationForm, ProfileForm
 
 
 def login(request):
@@ -16,6 +17,7 @@ def login(request):
             user = auth.authenticate(username=username, password=password)
             if user:
                 auth.login(request, user)
+                messages.success(request, 'Вы вошли в аккаунт')
                 return HttpResponseRedirect(reverse('main:index'))
     else:
         form = UserLoginForm()
@@ -34,6 +36,7 @@ def registration(request):
             form.save()
             user = form.instance
             auth.login(request, user)
+            messages.success(request, f'{user.username}, Вы успешно зарегестрировались и вошли в аккаунт')
             return HttpResponseRedirect(reverse('main:index'))
     else:
         form = UserRegistrationForm()
@@ -45,13 +48,26 @@ def registration(request):
     return render(request, 'users/registration.html', context)
 
 
+@login_required
 def profile(request):
+    if request.method == 'POST':
+        form = ProfileForm(data=request.POST, instance=request.user, files=request.FILES)
+        if form.is_valid():
+            form.save()
+            messages.success(request, 'Профиль успешно обновлён')
+            return HttpResponseRedirect(reverse('user:profile'))
+    else:
+        form = ProfileForm(instance=request.user)
+
     context = {
         'title': 'HOME - Кабинет',
+        'form': form
     }
     return render(request, 'users/profile.html', context)
 
 
+@login_required
 def logout(request):
+    messages.success(request, f'{request.user.username}, Вы вышли из аккаунта')
     auth.logout(request)
     return redirect(reverse('main:index'))
